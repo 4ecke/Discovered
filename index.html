@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discovered</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Geist:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f0f0f;
+  --bg2: #181818;
+  --surface: #1c1c1c;
+  --border: #2a2a2a;
+  --border2: #383838;
+  --text: #f0ede8;
+  --text2: #9a9590;
+  --text3: #5a5550;
+  --accent: #c8f060;
+  --accent-dim: rgba(200,240,96,0.08);
+  --red: #ff5c5c;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Geist', sans-serif;
+  font-weight: 300;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 0; opacity: 0.5;
+}
+
+.logo {
+  position: fixed; top: 28px; left: 32px;
+  font-family: 'Playfair Display', serif;
+  font-size: 17px; color: var(--text);
+  text-decoration: none; z-index: 100; letter-spacing: -0.3px;
+}
+
+.key-btn {
+  position: fixed; top: 30px; right: 32px; z-index: 100;
+  background: none; border: 1px solid var(--border2);
+  border-radius: 6px; padding: 6px 12px;
+  font-family: 'Geist', sans-serif; font-size: 12px;
+  color: var(--text3); cursor: pointer; transition: all 0.15s;
+}
+.key-btn:hover { color: var(--text2); background: var(--surface); }
+.key-btn.set { color: var(--accent); border-color: rgba(200,240,96,0.25); }
+
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+  z-index: 200; display: none; align-items: center; justify-content: center;
+  backdrop-filter: blur(3px);
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 14px; padding: 28px 32px; width: 380px;
+  max-width: calc(100vw - 40px); animation: popIn 0.2s ease;
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.96) translateY(6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.modal-title { font-family: 'Playfair Display', serif; font-size: 18px; margin-bottom: 6px; }
+.modal-sub { font-size: 13px; color: var(--text2); margin-bottom: 20px; line-height: 1.5; }
+.modal input {
+  width: 100%; background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: 8px; padding: 10px 13px; font-family: 'Geist', sans-serif;
+  font-size: 13px; color: var(--text); outline: none;
+  margin-bottom: 12px; transition: border-color 0.15s;
+}
+.modal input:focus { border-color: var(--accent); }
+.modal-btns { display: flex; gap: 8px; }
+.modal-save {
+  flex: 1; padding: 9px; background: var(--accent); color: #0f0f0f;
+  border: none; border-radius: 8px; font-family: 'Geist', sans-serif;
+  font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity 0.15s;
+}
+.modal-save:hover { opacity: 0.85; }
+.modal-cancel {
+  padding: 9px 16px; background: none; border: 1px solid var(--border2);
+  border-radius: 8px; font-family: 'Geist', sans-serif;
+  font-size: 13px; color: var(--text2); cursor: pointer;
+}
+.modal-cancel:hover { background: var(--bg2); }
+.modal-link { font-size: 12px; color: var(--text3); margin-top: 10px; display: block; }
+.modal-link a { color: var(--accent); text-decoration: none; }
+
+main {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 100px 20px 80px; position: relative; z-index: 1;
+}
+main.has-results { justify-content: flex-start; padding-top: 100px; }
+
+.search-wrap { width: 100%; max-width: 580px; }
+
+.eyebrow {
+  font-family: 'Playfair Display', serif; font-size: 13px;
+  font-style: italic; color: var(--text3); text-align: center;
+  margin-bottom: 20px; transition: opacity 0.3s, max-height 0.3s;
+  max-height: 40px; overflow: hidden;
+}
+.has-results .eyebrow { opacity: 0; max-height: 0; margin: 0; }
+
+.input-box {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 14px; box-shadow: 0 2px 24px rgba(0,0,0,0.3);
+  transition: border-color 0.2s, box-shadow 0.2s; position: relative;
+}
+.input-box:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 2px 24px rgba(0,0,0,0.3), 0 0 0 1px rgba(200,240,96,0.12);
+}
+
+.chips-row {
+  display: flex; flex-wrap: wrap; gap: 7px;
+  padding: 14px 16px 0; min-height: 0;
+}
+.chips-row:empty { padding: 0; }
+
+.chip {
+  display: flex; align-items: center; gap: 5px;
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: 99px; padding: 5px 8px 5px 12px;
+  font-size: 13px; color: var(--text);
+  animation: chipIn 0.15s ease; max-width: 280px;
+}
+@keyframes chipIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.chip-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip-sub { font-size: 11px; color: var(--text3); white-space: nowrap; flex-shrink: 0; }
+.chip-remove {
+  background: none; border: none; cursor: pointer;
+  color: var(--text3); font-size: 16px; line-height: 1;
+  padding: 0 2px; transition: color 0.1s; flex-shrink: 0;
+}
+.chip-remove:hover { color: var(--red); }
+
+.search-row {
+  display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+}
+.search-icon { color: var(--text3); flex-shrink: 0; }
+.search-input {
+  flex: 1; background: none; border: none; outline: none;
+  font-family: 'Geist', sans-serif; font-size: 15px;
+  font-weight: 300; color: var(--text);
+}
+.search-input::placeholder { color: var(--text3); }
+.search-input:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.search-go {
+  padding: 7px 16px; background: var(--accent); color: #0f0f0f;
+  border: none; border-radius: 8px; font-family: 'Geist', sans-serif;
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  transition: opacity 0.15s; white-space: nowrap; display: none;
+}
+.search-go:hover { opacity: 0.85; }
+.search-go.visible { display: block; }
+
+.limit-hint {
+  font-size: 11px; color: var(--text3);
+  padding: 0 16px 12px; font-style: italic; display: none;
+}
+
+.suggestions-wrap {
+  position: absolute; top: calc(100% + 8px); left: 0; right: 0;
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 12px; overflow: hidden; z-index: 50;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5); display: none;
+}
+.suggestions-wrap.open { display: block; }
+
+.suggestion-item {
+  display: flex; align-items: center; padding: 11px 16px; gap: 10px;
+  cursor: pointer; width: 100%; background: none; border: none;
+  text-align: left; transition: background 0.1s;
+}
+.suggestion-item:hover, .suggestion-item.focused { background: var(--bg2); }
+.sug-name { font-size: 14px; color: var(--text); }
+.sug-artist { font-size: 12px; color: var(--text2); margin-top: 1px; }
+.sug-msg { padding: 14px 16px; font-size: 13px; color: var(--text3); text-align: center; }
+.sug-err { color: var(--red); }
+
+.no-key-hint {
+  text-align: center; margin-top: 14px;
+  font-size: 13px; color: var(--text3);
+}
+.no-key-hint span { color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+
+.results-wrap { width: 100%; max-width: 580px; margin-top: 20px; }
+
+.results-header {
+  font-size: 12px; color: var(--text3);
+  margin-bottom: 12px; padding: 0 2px; line-height: 1.7;
+}
+.results-header em {
+  font-family: 'Playfair Display', serif; font-style: italic;
+  color: var(--text2); font-size: 13px;
+}
+
+.result-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px; margin-bottom: 8px;
+  display: flex; align-items: flex-start; gap: 12px;
+  transition: border-color 0.15s; animation: fadeUp 0.25s ease both;
+}
+.result-card:hover { border-color: var(--border2); }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.result-num {
+  font-family: 'Playfair Display', serif; font-size: 14px;
+  color: var(--text3); font-style: italic; min-width: 16px; padding-top: 2px;
+}
+.result-img {
+  width: 42px; height: 42px; border-radius: 5px;
+  object-fit: cover; background: var(--bg2); flex-shrink: 0;
+}
+.result-img-ph {
+  width: 42px; height: 42px; border-radius: 5px;
+  background: var(--bg2); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text3); font-size: 16px;
+}
+.result-info { flex: 1; min-width: 0; }
+.result-title {
+  font-family: 'Playfair Display', serif; font-size: 15px; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.result-artist { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.result-meta { font-size: 11px; color: var(--text3); margin-top: 5px; font-style: italic; }
+
+.match-badge {
+  font-size: 11px; padding: 3px 9px; border-radius: 99px;
+  white-space: nowrap; flex-shrink: 0; align-self: flex-start; margin-top: 3px;
+}
+.match-full  { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(200,240,96,0.2); }
+.match-most  { background: rgba(96,200,240,0.07); color: #60c8f0; border: 1px solid rgba(96,200,240,0.18); }
+.match-some  { background: rgba(150,150,150,0.07); color: var(--text2); border: 1px solid var(--border); }
+
+.results-loading {
+  text-align: center; padding: 48px 0; color: var(--text3); font-size: 14px;
+}
+.spin {
+  width: 22px; height: 22px; border: 1.5px solid var(--border2);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.7s linear infinite; margin: 0 auto 14px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.error-msg {
+  padding: 16px; color: var(--red); font-size: 13px;
+  background: rgba(255,92,92,0.07); border-radius: 10px;
+  border: 1px solid rgba(255,92,92,0.15);
+}
+
+.results-footer {
+  text-align: center; padding: 16px 0 4px;
+  font-size: 12px; color: var(--text3); font-style: italic;
+}
+
+footer {
+  text-align: center; padding: 20px;
+  font-size: 11px; color: var(--text3); position: relative; z-index: 1;
+}
+</style>
+</head>
+<body>
+
+<a class="logo" href="#">Discovered</a>
+<button class="key-btn" id="key-btn" onclick="openModal()">⚙ api key</button>
+
+<div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-title">Last.fm API key</div>
+    <div class="modal-sub">Paste your Last.fm API key below. Saved to your browser, never sent anywhere else.</div>
+    <input type="password" id="modal-key-input" placeholder="Paste your API key here">
+    <div class="modal-btns">
+      <button class="modal-save" onclick="saveKey()">Save</button>
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+    </div>
+    <span class="modal-link">Don't have one? <a href="https://www.last.fm/api/account/create" target="_blank">Get it free at last.fm/api →</a></span>
+  </div>
+</div>
+
+<main id="main">
+  <div class="search-wrap">
+    <div class="eyebrow">add up to 5 songs — find what they all have in common</div>
+    <div class="input-box" id="input-box">
+      <div class="chips-row" id="chips-row"></div>
+      <div class="search-row">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input class="search-input" id="search-input"
+          type="text" autocomplete="off" autocorrect="off" spellcheck="false"
+          placeholder="type a song name..."
+          oninput="handleInput(this.value)"
+          onkeydown="handleKeydown(event)">
+        <button class="search-go" id="search-go" onclick="runSearch()">Find similar →</button>
+      </div>
+      <div class="limit-hint" id="limit-hint">5 songs max — remove one to add another</div>
+      <div class="suggestions-wrap" id="suggestions-wrap"></div>
+    </div>
+    <div class="no-key-hint" id="no-key-hint" style="display:none">
+      Add your <span onclick="openModal()">Last.fm API key</span> to get started
+    </div>
+  </div>
+  <div id="results-area"></div>
+</main>
+
+<footer>powered by Last.fm · similarity based on real human listening patterns</footer>
+
+<script>
+const BASE = 'https://ws.audioscrobbler.com/2.0/';
+const MAX_INPUTS = 5;
+const FETCH_LIMIT = 100;
+const SHOW_LIMIT = 25;
+
+var selectedSongs = [];
+var suggestions = [];
+var focusedIdx = -1;
+var searchTimer = null;
+
+function getKey() { return localStorage.getItem('discovered_key') || ''; }
+
+function saveKey() {
+  var v = document.getElementById('modal-key-input').value.trim();
+  if (!v) return;
+  localStorage.setItem('discovered_key', v);
+  updateKeyBtn();
+  closeModal();
+  document.getElementById('no-key-hint').style.display = 'none';
+}
+
+function updateKeyBtn() {
+  var btn = document.getElementById('key-btn');
+  if (getKey()) btn.classList.add('set');
+  else btn.classList.remove('set');
+}
+
+function openModal() {
+  document.getElementById('modal-key-input').value = getKey();
+  document.getElementById('modal-overlay').classList.add('open');
+  setTimeout(function() { document.getElementById('modal-key-input').focus(); }, 80);
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+function handleOverlayClick(e) { if (e.target.id === 'modal-overlay') closeModal(); }
+
+function renderChips() {
+  var row = document.getElementById('chips-row');
+  row.innerHTML = selectedSongs.map(function(s, i) {
+    return '<div class="chip">' +
+      '<span class="chip-label">' + escHtml(s.name) + '</span>' +
+      '<span class="chip-sub">&nbsp;— ' + escHtml(s.artist) + '</span>' +
+      '<button class="chip-remove" onclick="removeChip(' + i + ')">×</button>' +
+    '</div>';
+  }).join('');
+
+  var atLimit = selectedSongs.length >= MAX_INPUTS;
+  var inp = document.getElementById('search-input');
+  inp.disabled = atLimit;
+  inp.placeholder = atLimit ? 'max 5 reached' : selectedSongs.length > 0 ? 'add another song...' : 'type a song name...';
+  document.getElementById('limit-hint').style.display = atLimit ? 'block' : 'none';
+  document.getElementById('search-go').classList.toggle('visible', selectedSongs.length > 0);
+  if (atLimit) closeSuggestions();
+}
+
+function removeChip(i) {
+  selectedSongs.splice(i, 1);
+  renderChips();
+}
+
+function addSong(track) {
+  if (selectedSongs.length >= MAX_INPUTS) return;
+  var name = track.name;
+  var artist = track.artist;
+  var dupe = selectedSongs.some(function(s) {
+    return s.name.toLowerCase() === name.toLowerCase() && s.artist.toLowerCase() === artist.toLowerCase();
+  });
+  if (dupe) { closeSuggestions(); document.getElementById('search-input').value = ''; return; }
+  selectedSongs.push({ name: name, artist: artist });
+  renderChips();
+  closeSuggestions();
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-input').focus();
+}
+
+function handleInput(val) {
+  if (selectedSongs.length >= MAX_INPUTS) return;
+  if (!val.trim()) { closeSuggestions(); return; }
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(function() { searchLastfm(val); }, 260);
+}
+
+function handleKeydown(e) {
+  var items = document.querySelectorAll('.suggestion-item');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    focusedIdx = Math.min(focusedIdx + 1, items.length - 1);
+    items.forEach(function(el, i) { el.classList.toggle('focused', i === focusedIdx); });
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    focusedIdx = Math.max(focusedIdx - 1, -1);
+    items.forEach(function(el, i) { el.classList.toggle('focused', i === focusedIdx); });
+  } else if (e.key === 'Enter') {
+    if (focusedIdx >= 0 && suggestions[focusedIdx]) {
+      addSong(suggestions[focusedIdx]);
+    } else if (selectedSongs.length > 0 && !document.getElementById('suggestions-wrap').classList.contains('open')) {
+      runSearch();
+    }
+  } else if (e.key === 'Escape') {
+    closeSuggestions();
+  }
+}
+
+async function searchLastfm(query) {
+  var key = getKey();
+  if (!key) { document.getElementById('no-key-hint').style.display = 'block'; return; }
+  showSugMsg('searching...', false);
+  try {
+    var url = BASE + '?method=track.search&track=' + encodeURIComponent(query) + '&api_key=' + key + '&format=json&limit=6';
+    var res = await fetch(url);
+    if (!res.ok) throw new Error('Network error ' + res.status);
+    var data = await res.json();
+    if (data.error) throw new Error(data.message + ' (code ' + data.error + ')');
+    var raw = data.results && data.results.trackmatches && data.results.trackmatches.track;
+    if (!raw) { showSugMsg('no results', false); return; }
+    var tracks = Array.isArray(raw) ? raw : [raw];
+    suggestions = tracks.map(function(t) { return { name: t.name, artist: t.artist }; });
+    renderSuggestions();
+  } catch(e) {
+    showSugMsg(e.message || 'error', true);
+  }
+}
+
+function showSugMsg(msg, isErr) {
+  var w = document.getElementById('suggestions-wrap');
+  w.innerHTML = '<div class="sug-msg' + (isErr ? ' sug-err' : '') + '">' + escHtml(msg) + '</div>';
+  w.classList.add('open');
+}
+
+function renderSuggestions() {
+  var w = document.getElementById('suggestions-wrap');
+  if (!suggestions.length) { showSugMsg('no results', false); return; }
+  w.innerHTML = suggestions.map(function(t, i) {
+    return '<button class="suggestion-item" onclick="addSong(suggestions[' + i + '])">' +
+      '<div>' +
+        '<div class="sug-name">' + escHtml(t.name) + '</div>' +
+        '<div class="sug-artist">' + escHtml(t.artist) + '</div>' +
+      '</div>' +
+    '</button>';
+  }).join('');
+  w.classList.add('open');
+  focusedIdx = -1;
+}
+
+function closeSuggestions() {
+  var w = document.getElementById('suggestions-wrap');
+  w.classList.remove('open');
+  w.innerHTML = '';
+  suggestions = [];
+  focusedIdx = -1;
+}
+
+async function runSearch() {
+  if (!selectedSongs.length) return;
+  var key = getKey();
+  if (!key) { openModal(); return; }
+
+  closeSuggestions();
+  document.getElementById('main').classList.add('has-results');
+  document.getElementById('results-area').innerHTML =
+    '<div class="results-wrap"><div class="results-loading"><div class="spin"></div>fetching similar tracks...</div></div>';
+
+  try {
+    var allLists = await Promise.all(selectedSongs.map(function(s) {
+      return getSimilarList(s.name, s.artist, key);
+    }));
+
+    var inputArtists = new Set(selectedSongs.map(function(s) { return s.artist.toLowerCase().trim(); }));
+    var countMap = {};
+
+    allLists.forEach(function(list, inputIdx) {
+      list.forEach(function(t) {
+        var artistName = (t.artist && t.artist.name) ? t.artist.name : String(t.artist || '');
+        if (inputArtists.has(artistName.toLowerCase().trim())) return;
+        var normKey = (t.name + '|||' + artistName).toLowerCase();
+        if (!countMap[normKey]) {
+          countMap[normKey] = { track: t, artistName: artistName, count: 0, inputs: [], totalMatch: 0 };
+        }
+        if (countMap[normKey].inputs.indexOf(inputIdx) === -1) {
+          countMap[normKey].count++;
+          countMap[normKey].inputs.push(inputIdx);
+          countMap[normKey].totalMatch += (parseFloat(t.match) || 0);
+        }
+      });
+    });
+
+    var results = Object.values(countMap).sort(function(a, b) {
+      return b.count - a.count || b.totalMatch - a.totalMatch;
+    });
+
+    var finalList = results.slice(0, SHOW_LIMIT);
+
+    if (!finalList.length) {
+      document.getElementById('results-area').innerHTML =
+        '<div class="results-wrap"><div class="error-msg">No overlapping similar tracks found. Try different songs or fewer inputs.</div></div>';
+      return;
+    }
+
+    var enriched = await Promise.all(finalList.map(function(r) { return enrichEntry(r, key); }));
+    renderResults(enriched, results.length);
+
+  } catch(e) {
+    document.getElementById('results-area').innerHTML =
+      '<div class="results-wrap"><div class="error-msg">' + escHtml(e.message || 'Something went wrong. Check your API key.') + '</div></div>';
+  }
+}
+
+async function getSimilarList(trackName, artist, key) {
+  try {
+    var url = BASE + '?method=track.getSimilar' +
+      '&track=' + encodeURIComponent(trackName) +
+      '&artist=' + encodeURIComponent(artist) +
+      '&api_key=' + key + '&format=json&limit=' + FETCH_LIMIT + '&autocorrect=1';
+    var res = await fetch(url);
+    if (!res.ok) return [];
+    var data = await res.json();
+    if (data.error) return [];
+    var tracks = (data.similartracks && data.similartracks.track) || [];
+    return Array.isArray(tracks) ? tracks : [tracks];
+  } catch(e) { return []; }
+}
+
+async function enrichEntry(entry, key) {
+  try {
+    var url = BASE + '?method=track.getInfo' +
+      '&track=' + encodeURIComponent(entry.track.name) +
+      '&artist=' + encodeURIComponent(entry.artistName) +
+      '&api_key=' + key + '&format=json&autocorrect=1';
+    var res = await fetch(url);
+    var data = await res.json();
+    entry.info = (!data.error && data.track) ? data.track : null;
+  } catch(e) { entry.info = null; }
+  return entry;
+}
+
+function renderResults(entries, totalFound) {
+  var total = selectedSongs.length;
+  var inputNames = selectedSongs.map(function(s) { return '<em>' + escHtml(s.name) + '</em>'; }).join(' + ');
+  var subline = total > 1
+    ? 'top ' + entries.length + ' tracks appearing similar across ' + inputNames
+    : 'top ' + entries.length + ' tracks similar to ' + inputNames;
+
+  var cards = entries.map(function(entry, i) {
+    var t = entry.track;
+    var artistName = entry.artistName;
+    var count = entry.count;
+    var img = getImg(entry);
+    var imgEl = img
+      ? '<img class="result-img" src="' + img + '" alt="" onerror="this.style.display=\'none\'">'
+      : '<div class="result-img-ph">♪</div>';
+
+    var tags = '';
+    if (entry.info && entry.info.toptags && entry.info.toptags.tag) {
+      tags = entry.info.toptags.tag.slice(0,3).map(function(tg) { return tg.name.toLowerCase(); }).filter(Boolean).join(' · ');
+    }
+    var listeners = '';
+    if (entry.info && entry.info.listeners) {
+      var n = parseInt(entry.info.listeners);
+      if (n > 0) listeners = formatNum(n) + ' listeners';
+    }
+    var meta = [tags, listeners].filter(Boolean).join(' · ');
+
+    var badgeClass, badgeLabel;
+    if (total === 1) {
+      badgeClass = 'match-full'; badgeLabel = 'similar';
+    } else if (count === total) {
+      badgeClass = 'match-full'; badgeLabel = 'matched ' + count + '/' + total;
+    } else if (count >= Math.ceil(total / 2)) {
+      badgeClass = 'match-most'; badgeLabel = 'matched ' + count + '/' + total;
+    } else {
+      badgeClass = 'match-some'; badgeLabel = 'matched ' + count + '/' + total;
+    }
+
+    return '<div class="result-card" style="animation-delay:' + (i * 0.025) + 's">' +
+      '<div class="result-num">' + (i + 1) + '</div>' +
+      imgEl +
+      '<div class="result-info">' +
+        '<div class="result-title">' + escHtml(t.name) + '</div>' +
+        '<div class="result-artist">' + escHtml(artistName) + '</div>' +
+        (meta ? '<div class="result-meta">' + escHtml(meta) + '</div>' : '') +
+      '</div>' +
+      '<div class="match-badge ' + badgeClass + '">' + badgeLabel + '</div>' +
+    '</div>';
+  }).join('');
+
+  var footer;
+  if (entries.length < SHOW_LIMIT) {
+    footer = '<div class="results-footer">showing ' + entries.length + ' result' + (entries.length !== 1 ? 's' : '') +
+      (totalFound > entries.length ? ' out of ' + totalFound + ' found' : '') +
+      ' — couldn\'t reach ' + SHOW_LIMIT + '. try adding more songs or different tracks.</div>';
+  } else {
+    footer = '<div class="results-footer">top ' + SHOW_LIMIT + ' results · similarity sourced from within the top ' + FETCH_LIMIT + ' per song</div>';
+  }
+
+  document.getElementById('results-area').innerHTML =
+    '<div class="results-wrap">' +
+      '<div class="results-header">' + subline + '</div>' +
+      cards + footer +
+    '</div>';
+}
+
+function getImg(entry) {
+  if (!entry.info) return '';
+  var imgs = (entry.info.album && entry.info.album.image) || entry.info.image || [];
+  for (var i = imgs.length - 1; i >= 0; i--) {
+    if (imgs[i]['#text']) return imgs[i]['#text'];
+  }
+  return '';
+}
+
+function formatNum(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return Math.round(n / 1000) + 'k';
+  return String(n);
+}
+
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function init() {
+  updateKeyBtn();
+  if (!getKey()) document.getElementById('no-key-hint').style.display = 'block';
+  document.getElementById('search-input').focus();
+  renderChips();
+  document.addEventListener('click', function(e) {
+    if (!document.getElementById('input-box').contains(e.target)) closeSuggestions();
+  });
+  document.getElementById('modal-key-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') saveKey();
+  });
+}
+
+init();
+</script>
+</body>
+</html>
